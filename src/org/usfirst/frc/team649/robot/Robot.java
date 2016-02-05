@@ -2,15 +2,12 @@
 package org.usfirst.frc.team649.robot;
 
 import edu.wpi.first.wpilibj.IterativeRobot;
-import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
-import edu.wpi.first.wpilibj.networktables.NetworkTable;
-
-import java.io.IOException;
-
-import edu.wpi.first.wpilibj.smartdashboard.SendableChooser;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
+
+import org.opencv.core.Mat;
+import org.opencv.highgui.VideoCapture;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -20,21 +17,29 @@ import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
  * directory.
  */
 public class Robot extends IterativeRobot {
+		
+	VideoCapture vcap;
+	//private final static String[] GRIP_ARGS = new String[] {
+//	        "/usr/local/frc/JRE/bin/java", "-jar",
+//	        "/home/lvuser/grip.jar", "/home/lvuser/project.grip" };
 
-	private final static String[] GRIP_ARGS = new String[] {
-	        "/usr/local/frc/JRE/bin/java", "-jar",
-	        "/home/lvuser/grip.jar", "/home/lvuser/project.grip" };
-
-	    private final NetworkTable grip = NetworkTable.getTable("grip");
+	    //	private final NetworkTable grip = NetworkTable.getTable("grip");
 
 	    @Override
 	    public void robotInit() {
+	    	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
+	    	vcap.open("http://192.168.226.101/view/index.shtml?dummy_param.mjpg");
+//	        if (!vcap.isOpened())  // if not success
+//	        {
+//	           System.out.println("Couldn't Open stream");
+//	        } 
+	        
 	        /* Run GRIP in a new process */
-	        try {
-	            Runtime.getRuntime().exec(GRIP_ARGS);
-	        } catch (IOException e) {
-	            e.printStackTrace();
-	        }
+//	        try {
+//	            Runtime.getRuntime().exec(GRIP_ARGS);
+//	        } catch (IOException e) {
+//	            e.printStackTrace();
+//	        }
 	    }
 	
 	/**
@@ -42,10 +47,12 @@ public class Robot extends IterativeRobot {
      * You can use it to reset any subsystem information you want to clear when
 	 * the robot is disabled.
      */
-    public void disabledInit(){
+    @Override
+	public void disabledInit(){
 
     }
 	
+	@Override
 	public void disabledPeriodic() {
 		Scheduler.getInstance().run();
 	}
@@ -59,7 +66,9 @@ public class Robot extends IterativeRobot {
 	 * You can add additional auto modes by adding additional commands to the chooser code above (like the commented example)
 	 * or additional comparisons to the switch structure below with additional strings & commands.
 	 */
-    public void autonomousInit() {
+    @Override
+	public void autonomousInit() {
+    	
     }
 
     /**
@@ -67,26 +76,37 @@ public class Robot extends IterativeRobot {
      */
     @Override
     public void autonomousPeriodic() {
-        /* Get published values from GRIP using NetworkTables */
-        for (double area : grip.getNumberArray("retroTapeReport/area", new double[0])) {
-            System.out.println("Got contour with area=" + area);
-        }
+//        /* Get published values from GRIP using NetworkTables */
+//        for (double area : grip.getNumberArray("retroTapeReport/area", new double[0])) {
+//            System.out.println("Got contour with area=" + area);
+//        }
     }
 
-    public void teleopInit() {
+    @Override
+	public void teleopInit() {
     }
 
     /**
      * This function is called periodically during operator control
      */
-    public void teleopPeriodic() {
+    @Override
+	public void teleopPeriodic() {
+    	
+    	Mat image = new Mat();
+    	
+    	vcap.read(image);
+    	
+    	SmartDashboard.putNumber("Mat Height", image.height());
+    	SmartDashboard.putNumber("Mat Width", image.width());
+    	
         Scheduler.getInstance().run();
     }
     
     /**
      * This function is called periodically during test mode
      */
-    public void testPeriodic() {
+    @Override
+	public void testPeriodic() {
         LiveWindow.run();
     }
 }
