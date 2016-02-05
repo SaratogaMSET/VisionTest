@@ -6,8 +6,11 @@ import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
+import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.Scalar;
 import org.opencv.highgui.VideoCapture;
+import org.opencv.imgproc.Imgproc;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -28,7 +31,13 @@ public class Robot extends IterativeRobot {
 	    @Override
 	    public void robotInit() {
 	    	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
-	    	vcap.open("http://192.168.226.101/view/index.shtml?dummy_param.mjpg");
+	    	try{
+	    		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+	    	}
+	    	catch (Exception e){
+	    		System.out.println("\n\n\nERROROROROROROROR WITH CAM");
+	    		System.out.println(e.getMessage() + "\n\n\n");
+	    	}
 //	        if (!vcap.isOpened())  // if not success
 //	        {
 //	           System.out.println("Couldn't Open stream");
@@ -84,6 +93,14 @@ public class Robot extends IterativeRobot {
 
     @Override
 	public void teleopInit() {
+    	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
+    	try{
+    		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+    	}
+    	catch (Exception e){
+    		System.out.println("\n\n\nERROROROROROROROR WITH CAM");
+    		System.out.println(e.getMessage() + "\n\n\n");
+    	}
     }
 
     /**
@@ -93,11 +110,18 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
     	
     	Mat image = new Mat();
+    	Mat imageHSV = new Mat();
     	
     	vcap.read(image);
     	
+    	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
+    	
+    	Core.inRange(imageHSV, new Scalar(110, 50, 50), new Scalar(130, 255, 255), imageHSV);
+    	//Imgproc.findContours(imageHSV, contours, hierarchy, mode, method);
+    	
     	SmartDashboard.putNumber("Mat Height", image.height());
     	SmartDashboard.putNumber("Mat Width", image.width());
+    	
     	
         Scheduler.getInstance().run();
     }
