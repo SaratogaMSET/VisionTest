@@ -6,9 +6,14 @@ import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.opencv.core.Core;
 import org.opencv.core.Mat;
+import org.opencv.core.MatOfPoint;
 import org.opencv.core.Scalar;
+import org.opencv.core.Size;
 import org.opencv.highgui.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 
@@ -117,6 +122,28 @@ public class Robot extends IterativeRobot {
     	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
     	
     	Core.inRange(imageHSV, new Scalar(110, 50, 50), new Scalar(130, 255, 255), imageHSV);
+    	
+    	Mat erode = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3, 3));
+        Imgproc.erode(imageHSV, imageHSV, erode);
+    	Mat dilate = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3, 3));
+        Imgproc.dilate(imageHSV, imageHSV, dilate);//dilate   
+    	
+    	List<MatOfPoint> contours = new ArrayList<>();
+    	Mat hierarchy = new Mat();
+
+    	// find contours
+    	Imgproc.findContours(imageHSV, contours, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE);
+
+    	// if any contour exist...
+    	if (hierarchy.size().height > 0 && hierarchy.size().width > 0)
+    	{
+    		SmartDashboard.putNumber("Number of contours in image", contours.size());
+	        // for each contour
+	        for (int i = 0; i < contours.size(); i++)
+	        {
+	        	Imgproc.contourArea(contours.get(i));
+	        }
+    	}
     	//Imgproc.findContours(imageHSV, contours, hierarchy, mode, method);
     	
     	SmartDashboard.putNumber("Mat Height", image.height());
