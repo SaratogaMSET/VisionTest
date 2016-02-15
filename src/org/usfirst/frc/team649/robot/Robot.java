@@ -129,11 +129,21 @@ public class Robot extends IterativeRobot {
 	public void teleopPeriodic() {
     	Scheduler.getInstance().run();
     	
-    	
-    	image = new Mat();
-    	imageHSV = new Mat();
-    	
+    	//vision
+    	Mat image = new Mat();
     	vcap.read(image);
+    	findOneRetroTarget(image);
+    }
+    
+    
+
+    public double calcDistAxis206(double obj_pix, double obj_in, double view_pix, double max_cam_angle){
+    	return view_pix * obj_in / (2*Math.tan(max_cam_angle) * obj_pix);
+    }
+    
+    public void findOneRetroTarget(Mat image){
+    	//image = new Mat();
+    	imageHSV = new Mat();
     	
     	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
     	
@@ -167,34 +177,39 @@ public class Robot extends IterativeRobot {
 		        	//NetworkTable tab = NetworkTable.getTable("Obj " + i);
 	        		
 	        		//Center:    mu.m10()/mu.m00() , mu.m01()/mu.m00()
-//		        	tab.putString(name + " Center: ", "("+ mu.get_m10()/mu.get_m00() + ", " + mu.get_m01()/mu.get_m00() + ")");
-//		        	tab.putNumber(name + " Area: ", Imgproc.contourArea(contours.get(i)));
-//		        	tab.putNumber("Obj width: ", contours.get(i).width());
-//		        	tab.putNumber("Obj height: ", contours.get(i).height());
-	        		
-		        	//SendableTable contourObj = new SendableTable("Obj " + i, tab);
-		        	//SmartDashboard.putData("Obj " + i, contourObj);
-	        	}
+		        	
+	  	        }
 	        }
 	        
 	        //print details of the biggest one
-        	//String name = "Obj " + largest;
+        	String name = "Obj " + largest;
         	Rect r = Imgproc.boundingRect(contours.get(largest));
         	Moments mu = Imgproc.moments(contours.get(largest));
         	
         	//"("+ mu.get_m10()/mu.get_m00() + ", " + mu.get_m01()/mu.get_m00() + ")");
         	
         	//ASSUME LARGEST is the target, now calc dist
-        	
+         	
         	double dist = calcDistAxis206(r.width, WIDTH_TARGET, 320, STANDARD_VIEW_ANGLE);
+        	
+        	String[] keys = new String[]{"Obj Center X: ", "Obj Center Y: ", "Obj Area: ", "Obj width: ", "Obj height: ", "Obj Distance: "}; 
+        	Object[] elements = new Object[]{(Double)mu.get_m10()/mu.get_m00(), (Double)mu.get_m01()/mu.get_m00(), (Double)Imgproc.contourArea(contours.get(largest)), (Integer)r.width, (Integer)r.height, (Double)dist};
+//        	"Obj 0 Center X: ", mu.get_m10()/mu.get_m00());
+//        	"Obj 0 Center Y: ", mu.get_m01()/mu.get_m00());
+//        	"Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
+//        	"Obj 0 width: ", r.width);
+//        	"Obj 0 height: ", r.height);
+//        	"Obj 0 Distance: ", dist);	
+        	SendableTable contourObj = new SendableTable(name, keys, elements);
+        	SmartDashboard.putData("Obj " + largest, contourObj);
 
-        	SmartDashboard.putNumber("Obj 0 Center X: ", mu.get_m10()/mu.get_m00());
-        	SmartDashboard.putNumber("Obj 0 Center Y: ", mu.get_m01()/mu.get_m00());
-        	SmartDashboard.putNumber("Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
-        	SmartDashboard.putNumber("Obj 0 width: ", r.width);
-        	SmartDashboard.putNumber("Obj 0 height: ", r.height);
-        	SmartDashboard.putNumber("Obj 0 Distance: ", dist);
-	        
+        	
+//        	SmartDashboard.putNumber("Obj 0 Center X: ", mu.get_m10()/mu.get_m00());
+//        	SmartDashboard.putNumber("Obj 0 Center Y: ", mu.get_m01()/mu.get_m00());
+//        	SmartDashboard.putNumber("Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
+//        	SmartDashboard.putNumber("Obj 0 width: ", r.width);
+//        	SmartDashboard.putNumber("Obj 0 height: ", r.height);
+//        	SmartDashboard.putNumber("Obj 0 Distance: ", dist);
     	}
     	else{
     		SmartDashboard.putNumber("Obj 0 Center X: ", 0);
@@ -211,16 +226,12 @@ public class Robot extends IterativeRobot {
     	SmartDashboard.putNumber("Mat Width", image.width());
     	
         //mem save
-        image.release();;
+        image.release();
     	imageHSV.release();
 //    	erode.release();
 //    	dilate.release();
     	hierarchy.release();
         System.gc();
-    }
-
-    public double calcDistAxis206(double obj_pix, double obj_in, double view_pix, double max_cam_angle){
-    	return view_pix * obj_in / (2*Math.tan(max_cam_angle) * obj_pix);
     }
     
     /**
@@ -233,18 +244,50 @@ public class Robot extends IterativeRobot {
     
     
     ///***********************************************//
+    //pass all elements in as objects even primitive types
     public class SendableTable implements Sendable{
     	ITable table;
+    	String[] id;
+    	Object[] elem;
     	String t;
-		SendableTable(String type,ITable subtable){
+		SendableTable(String type, String[] keys, Object[] elements){
 			t = type;
-			table = subtable;
+			try {
+				updateElements(keys, elements);
+			}
+			catch (Exception e){
+				System.out.println(e.getMessage());
+			}
+		}
+		
+		public void updateElements(String[] keys, Object[] elements) throws Exception{
+			if (keys.length == elements.length){
+				this.id = keys;
+				this.elem = elements;
+			}
+			else{
+				throw new Exception("ERROR: ELEMENTS NOT THE SAME LENGTH");
+			}
 		}
 
 		@Override
 		public void initTable(ITable subtable) {
 			// TODO Auto-generated method stub
 			table = subtable;
+			for (int i = 0; i < elem.length; i++){
+				if (elem[i] instanceof Integer){
+					table.putNumber(id[i], (int)elem[i]);
+				}
+				else if (elem[i] instanceof Double){
+					table.putNumber(id[i], (double)elem[i]);
+				}
+				else if (elem[i] instanceof Boolean){
+					table.putBoolean(id[i], (boolean)elem[i]);
+				}
+				else if (elem[i] instanceof String){
+					table.putString(id[i], (String)elem[i]);
+				}
+			}
 			
 		}
 
