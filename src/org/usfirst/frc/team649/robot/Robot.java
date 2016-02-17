@@ -1,6 +1,7 @@
 
 package org.usfirst.frc.team649.robot;
 
+import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Sendable;
@@ -11,10 +12,13 @@ import edu.wpi.first.wpilibj.networktables.NetworkTable;
 import edu.wpi.first.wpilibj.smartdashboard.SmartDashboard;
 import edu.wpi.first.wpilibj.tables.ITable;
 
+import java.awt.image.BufferedImage;
+import java.awt.image.DataBufferByte;
 import java.util.ArrayList;
 import java.util.List;
 
 import org.opencv.core.Core;
+import org.opencv.core.CvType;
 import org.opencv.core.Mat;
 import org.opencv.core.MatOfPoint;
 import org.opencv.core.Rect;
@@ -50,12 +54,22 @@ public class Robot extends IterativeRobot {
 	    @Override
 	    public void robotInit() {
 	    	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
+	    	
+    		
 	    	try{
+	    		//FOR Axis CAMERA 206
+	    		//vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+	    		
+	    		//FOR Axis M1011
 	    		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
-	    	}
+	    		
+	    		//FOR USB CAMERA
+//	    		vcap = new VideoCapture(0);
+//	    		//Thread.sleep(1000);
+    	}
 	    	catch (Exception e){
-	    		System.out.println("\n\n\nERROROROROROROROR WITH CAM");
-	    		System.out.println(e.getMessage() + "\n\n\n");
+	    		System.out.println("\nERROROROROROROROR WITH CAM");
+	    		System.out.println(e.getMessage() + "\n");
 	    	}
 //	        if (!vcap.isOpened())  // if not success
 //	        {
@@ -110,16 +124,31 @@ public class Robot extends IterativeRobot {
 //        }
     }
 
+    CameraServer server;
+    
     @Override
 	public void teleopInit() {
     	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
+    	
     	try{
+    		//IP CAM Axis 206
     		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+    		
+    		//IP Cam Axis M1101
+    		//vcap = new VideoCapture("http://root:admin@169.254.50.52/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+
+    		//vcap = new VideoCapture(1);
     	}
     	catch (Exception e){
     		System.out.println("\n\n\nERROROROROROROROR WITH CAM");
     		System.out.println(e.getMessage() + "\n\n\n");
     	}
+    	
+    	//for the usb camera
+//    	server = CameraServer.getInstance();
+//        server.setQuality(50);
+//        //the camera name (ex "cam0") can be found through the roborio web interface
+//        server.startAutomaticCapture("cam0");
     }
     
     /**
@@ -130,6 +159,13 @@ public class Robot extends IterativeRobot {
     	Scheduler.getInstance().run();
     	
     	//vision
+    	
+//    	BufferedImage im = w.getImage();
+//    	byte[] pixels = ((DataBufferByte) im.getRaster().getDataBuffer()).getData();
+//    	
+//    	Mat image = new Mat(im.getHeight(), im.getWidth(), CvType.CV_8UC3);
+//    	image.put(0, 0, pixels);
+    	
     	Mat image = new Mat();
     	vcap.read(image);
     	findOneRetroTarget(image);
