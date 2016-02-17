@@ -35,17 +35,11 @@ public class Robot extends IterativeRobot {
 	
 	public static double WIDTH_TARGET = 18.5; //in
 	public static double STANDARD_VIEW_ANGLE = 0.454885;//0.9424778; //radians, for an Axis Camera 206 /////...54 degrees
-		
+	public static double MAX_Y_COORD = 180; //TODO find the actual angle of camera and the corresponding max y coord	
+	
 	VideoCapture vcap;
 	Mat image, imageHSV, erode, dilate, hierarchy;
 	List<MatOfPoint> contours;
-	
-	
-	//private final static String[] GRIP_ARGS = new String[] {
-//	        "/usr/local/frc/JRE/bin/java", "-jar",
-//	        "/home/lvuser/grip.jar", "/home/lvuser/project.grip" };
-
-	    //	private final NetworkTable grip = NetworkTable.getTable("grip");
 
 	    @Override
 	    public void robotInit() {
@@ -147,32 +141,46 @@ public class Robot extends IterativeRobot {
     	
     	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
     	
-    	Core.inRange(imageHSV, new Scalar(78, 124, 213), new Scalar(104, 255, 255), imageHSV);
+    	//Core.inRange(imageHSV, new Scalar(78, 124, 213), new Scalar(104, 255, 255), imageHSV);
+    	Core.inRange(imageHSV, new Scalar(66, 41, 227), new Scalar(104, 150, 255), imageHSV);
     	
-//    	erode = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3, 3));
-//        Imgproc.erode(imageHSV, imageHSV, erode);
-//    	dilate = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3, 3));
-//        Imgproc.dilate(imageHSV, imageHSV, dilate);//dilate   
-    	
+    	//BLUR
     	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(3,3), 0);
     	
+    	//DILATE > ERODE > DILATE > DILATE
+    	dilate = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3, 3));
+    	Imgproc.dilate(imageHSV, imageHSV, dilate);//dilate  
+    	erode = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3, 3));
+    	Imgproc.erode(imageHSV, imageHSV, erode);
+    	Imgproc.erode(imageHSV, imageHSV, dilate);
+    	Imgproc.erode(imageHSV, imageHSV, dilate);
+    	 
+    	//THRESHING
+    	Imgproc.threshold(imageHSV, imageHSV, 90, 255, Imgproc.THRESH_BINARY);
+    	
+    	//CONTOURS AND OBJECT DETECTION
     	contours = new ArrayList<>();
     	hierarchy = new Mat();
-
+    	
+    	Moments mu;
+    	
     	// find contours
     	Imgproc.findContours(imageHSV, contours, hierarchy, Imgproc.RETR_CCOMP, Imgproc.CHAIN_APPROX_SIMPLE);
-
+    	
     	// if any contour exist...
     	if (hierarchy.size().height > 0 && hierarchy.size().width > 0)
     	{
     		int largest = 0;
     		
-	        // for each contour, find the biggest
+	        // for each remaining contour, find the biggest
 	        for (int i = 0; i < contours.size(); i++)
 	        {
 	        	double area = Imgproc.contourArea(contours.get(i));
-	        	//greater than min size and greater than the last biggest
-	        	if (area > 100.0    &&    area > Imgproc.contourArea(contours.get(largest))){
+	        	mu = Imgproc.moments(contours.get(i));
+	        	double y_coord = mu.get_m01()/mu.get_m00();
+	        	//greater than min size AND in the upper part of photo AND greater than the last biggest
+	        	if (area > 100.0  && y_coord < MAX_Y_COORD  &&    area > Imgproc.contourArea(contours.get(largest))){
+	        		
 	        		largest = i;
 		        	//NetworkTable tab = NetworkTable.getTable("Obj " + i);
 	        		
@@ -184,7 +192,7 @@ public class Robot extends IterativeRobot {
 	        //print details of the biggest one
         	String name = "Obj " + largest;
         	Rect r = Imgproc.boundingRect(contours.get(largest));
-        	Moments mu = Imgproc.moments(contours.get(largest));
+        	mu = Imgproc.moments(contours.get(largest));
         	
         	//"("+ mu.get_m10()/mu.get_m00() + ", " + mu.get_m01()/mu.get_m00() + ")");
         	
@@ -228,8 +236,8 @@ public class Robot extends IterativeRobot {
         //mem save
         image.release();
     	imageHSV.release();
-//    	erode.release();
-//    	dilate.release();
+    	erode.release();
+    	dilate.release();
     	hierarchy.release();
         System.gc();
     }
