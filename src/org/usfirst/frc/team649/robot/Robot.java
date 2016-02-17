@@ -5,6 +5,7 @@ import edu.wpi.first.wpilibj.CameraServer;
 import edu.wpi.first.wpilibj.Encoder;
 import edu.wpi.first.wpilibj.IterativeRobot;
 import edu.wpi.first.wpilibj.Sendable;
+import edu.wpi.first.wpilibj.Timer;
 import edu.wpi.first.wpilibj.command.Command;
 import edu.wpi.first.wpilibj.command.Scheduler;
 import edu.wpi.first.wpilibj.livewindow.LiveWindow;
@@ -27,6 +28,8 @@ import org.opencv.core.Size;
 import org.opencv.highgui.VideoCapture;
 import org.opencv.imgproc.Imgproc;
 import org.opencv.imgproc.Moments;
+import org.usfirst.frc.team649.robot.subsystems.DrivetrainSubsystem;
+import org.usfirst.frc.team649.robot.util.Center;
 
 /**
  * The VM is configured to automatically run this class, and to call the
@@ -39,7 +42,13 @@ public class Robot extends IterativeRobot {
 	
 	public static double WIDTH_TARGET = 18.5; //in
 	public static double STANDARD_VIEW_ANGLE = 0.454885;//0.9424778; //radians, for an Axis Camera 206 /////...54 degrees
-	public static double MAX_Y_COORD = 180; //TODO find the actual angle of camera and the corresponding max y coord	
+	public static double MAX_Y_COORD = 195; //TODO find the actual angle of camera and the corresponding max y coord	
+	public static double X_TARGET = 160;
+	public static double K_PIX = 1.0/400;
+	
+	public static OI oi;
+	public static DrivetrainSubsystem drivetrain;
+	public static Timer timer;
 	
 	VideoCapture vcap;
 	Mat image, imageHSV, erode, dilate, hierarchy;
@@ -47,6 +56,10 @@ public class Robot extends IterativeRobot {
 
 	    @Override
 	    public void robotInit() {
+	    	oi = new OI();
+	    	drivetrain = new DrivetrainSubsystem();
+	    	timer = new Timer();
+	    	
 	    	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
 	    	
     		
@@ -56,7 +69,7 @@ public class Robot extends IterativeRobot {
 	    		
 	    		//FOR Axis M1011
 	    		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
-	    		
+	    		System.out.println("R-INIT FINISHED VCAP START AND FOUND CAM");
 	    		//FOR USB CAMERA
 //	    		vcap = new VideoCapture(0);
 //	    		//Thread.sleep(1000);
@@ -122,12 +135,15 @@ public class Robot extends IterativeRobot {
     
     @Override
 	public void teleopInit() {
+    	timer.start();
+    	
     	System.load("/usr/local/lib/lib_OpenCV/java/libopencv_java2410.so");
     	
     	try{
     		//IP CAM Axis 206
     		vcap = new VideoCapture("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
-    		
+    		//vcap.open("http://root:admin@axis-camera.local/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
+    		System.out.println("T-INIT: FINISHED VCAP START AND FOUND CAM");
     		//IP Cam Axis M1101
     		//vcap = new VideoCapture("http://root:admin@169.254.50.52/axis-cgi/mjpg/video.cgi?user=root&password=admin&channel=0&.mjpg");
 
@@ -161,8 +177,49 @@ public class Robot extends IterativeRobot {
 //    	image.put(0, 0, pixels);
     	
     	Mat image = new Mat();
-    	vcap.read(image);
-    	findOneRetroTarget(image);
+    	if (vcap.isOpened()){
+    		vcap.read(image);
+    		Center c = findOneRetroTarget(image);
+    		
+    		double diff;
+    		
+    		if (c.x != -1){
+
+    			diff = Math.abs(c.x - X_TARGET);
+    			
+    			if (oi.operatorJoystick.getRawButton(1)){
+    		
+	    			//check relative position
+	    			if (diff < 10){
+	    				drivetrain.rawDrive(0, 0);
+	    			}
+	    			//image on right side of target
+	    			else if (c.x > X_TARGET){
+	    				//drive left
+	    				drivetrain.rawDrive(-K_PIX * diff, K_PIX * diff);
+	    			}
+	    			//image on left side of target
+	    			else if (c.x < X_TARGET){
+	    				//drive right
+	    				drivetrain.rawDrive(K_PIX * diff, -K_PIX * diff);
+	    			}
+    			}
+    			else{
+    				drivetrain.rawDrive(0, 0);
+    			}
+    		}
+    		else {
+    			diff = -1;
+    			drivetrain.rawDrive(0, 0);
+    		}
+
+			SmartDashboard.putNumber("DIFFERENCE", diff);
+    		
+    		SmartDashboard.putBoolean("Checking Vision?", true);
+    	}
+    	else {
+    		SmartDashboard.putBoolean("Checking Vision?", false);
+    	}
     }
     
     
@@ -171,17 +228,19 @@ public class Robot extends IterativeRobot {
     	return view_pix * obj_in / (2*Math.tan(max_cam_angle) * obj_pix);
     }
     
-    public void findOneRetroTarget(Mat image){
+    public Center findOneRetroTarget(Mat image){
+    	
+    	Center center =  new Center(-1,-1); //default
     	//image = new Mat();
     	imageHSV = new Mat();
     	
     	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
     	
     	//Core.inRange(imageHSV, new Scalar(78, 124, 213), new Scalar(104, 255, 255), imageHSV);
-    	Core.inRange(imageHSV, new Scalar(66, 41, 227), new Scalar(104, 150, 255), imageHSV);
+    	Core.inRange(imageHSV, new Scalar(66, 0, 227), new Scalar(104, 255, 255), imageHSV);
     	
     	//BLUR
-    	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(3,3), 0);
+    	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(5,5), 0);
     	
     	//DILATE > ERODE > DILATE > DILATE
     	dilate = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3, 3));
@@ -192,7 +251,7 @@ public class Robot extends IterativeRobot {
     	Imgproc.erode(imageHSV, imageHSV, dilate);
     	 
     	//THRESHING
-    	Imgproc.threshold(imageHSV, imageHSV, 90, 255, Imgproc.THRESH_BINARY);
+    	Imgproc.threshold(imageHSV, imageHSV, 70, 255, Imgproc.THRESH_BINARY);
     	
     	//CONTOURS AND OBJECT DETECTION
     	contours = new ArrayList<>();
@@ -215,7 +274,7 @@ public class Robot extends IterativeRobot {
 	        	mu = Imgproc.moments(contours.get(i));
 	        	double y_coord = mu.get_m01()/mu.get_m00();
 	        	//greater than min size AND in the upper part of photo AND greater than the last biggest
-	        	if (area > 100.0  && y_coord < MAX_Y_COORD  &&    area > Imgproc.contourArea(contours.get(largest))){
+	        	if (area > 100.0  &&  y_coord < MAX_Y_COORD && area > Imgproc.contourArea(contours.get(largest))){
 	        		
 	        		largest = i;
 		        	//NetworkTable tab = NetworkTable.getTable("Obj " + i);
@@ -235,9 +294,10 @@ public class Robot extends IterativeRobot {
         	//ASSUME LARGEST is the target, now calc dist
          	
         	double dist = calcDistAxis206(r.width, WIDTH_TARGET, 320, STANDARD_VIEW_ANGLE);
+        	center = new Center(mu.get_m10()/mu.get_m00(), mu.get_m01()/mu.get_m00());
         	
         	String[] keys = new String[]{"Obj Center X: ", "Obj Center Y: ", "Obj Area: ", "Obj width: ", "Obj height: ", "Obj Distance: "}; 
-        	Object[] elements = new Object[]{(Double)mu.get_m10()/mu.get_m00(), (Double)mu.get_m01()/mu.get_m00(), (Double)Imgproc.contourArea(contours.get(largest)), (Integer)r.width, (Integer)r.height, (Double)dist};
+        	Object[] elements = new Object[]{(Double)center.x, (Double)center.y, (Double)Imgproc.contourArea(contours.get(largest)), (Integer)r.width, (Integer)r.height, (Double)dist};
 //        	"Obj 0 Center X: ", mu.get_m10()/mu.get_m00());
 //        	"Obj 0 Center Y: ", mu.get_m01()/mu.get_m00());
 //        	"Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
@@ -248,12 +308,12 @@ public class Robot extends IterativeRobot {
         	SmartDashboard.putData("Obj " + largest, contourObj);
 
         	
-//        	SmartDashboard.putNumber("Obj 0 Center X: ", mu.get_m10()/mu.get_m00());
-//        	SmartDashboard.putNumber("Obj 0 Center Y: ", mu.get_m01()/mu.get_m00());
-//        	SmartDashboard.putNumber("Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
-//        	SmartDashboard.putNumber("Obj 0 width: ", r.width);
-//        	SmartDashboard.putNumber("Obj 0 height: ", r.height);
-//        	SmartDashboard.putNumber("Obj 0 Distance: ", dist);
+        	SmartDashboard.putNumber("Obj 0 Center X: ", center.x);
+        	SmartDashboard.putNumber("Obj 0 Center Y: ", center.y);
+        	SmartDashboard.putNumber("Obj 0 Area: ", Imgproc.contourArea(contours.get(largest)));
+        	SmartDashboard.putNumber("Obj 0 width: ", r.width);
+        	SmartDashboard.putNumber("Obj 0 height: ", r.height);
+        	SmartDashboard.putNumber("Obj 0 Distance: ", dist);
     	}
     	else{
     		SmartDashboard.putNumber("Obj 0 Center X: ", 0);
@@ -276,6 +336,8 @@ public class Robot extends IterativeRobot {
     	dilate.release();
     	hierarchy.release();
         System.gc();
+        
+        return center;
     }
     
     /**

@@ -1,8 +1,8 @@
 package org.usfirst.frc.team649.robot.util;
 
 public class Center {
-	int x, y;
-	public Center(int _x, int _y){
+	public double x, y;
+	public Center(double _x, double _y){
 		x = _x;
 		y = _y;
 	}
