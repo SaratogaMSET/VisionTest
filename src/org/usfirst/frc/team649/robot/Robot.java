@@ -1,4 +1,3 @@
-
 package org.usfirst.frc.team649.robot;
 
 import edu.wpi.first.wpilibj.Encoder;
@@ -142,22 +141,28 @@ public class Robot extends IterativeRobot {
     	Imgproc.cvtColor(image, imageHSV, Imgproc.COLOR_BGR2HSV);
     	
     	//Core.inRange(imageHSV, new Scalar(78, 124, 213), new Scalar(104, 255, 255), imageHSV);
-    	Core.inRange(imageHSV, new Scalar(66, 41, 227), new Scalar(104, 150, 255), imageHSV);
+    	Core.inRange(imageHSV, new Scalar(60, 41, 218), new Scalar(94, 255, 255), imageHSV);
     	
     	//BLUR
-    	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(3,3), 0);
+    	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(5,5), 0);
     	
-    	//DILATE > ERODE > DILATE > DILATE
+    	//DILATE > ERODE > DILATE 
     	dilate = Imgproc.getStructuringElement(Imgproc.MORPH_DILATE, new Size(3, 3));
     	Imgproc.dilate(imageHSV, imageHSV, dilate);//dilate  
     	erode = Imgproc.getStructuringElement(Imgproc.MORPH_ERODE, new Size(3, 3));
     	Imgproc.erode(imageHSV, imageHSV, erode);
-    	Imgproc.erode(imageHSV, imageHSV, dilate);
-    	Imgproc.erode(imageHSV, imageHSV, dilate);
-    	 
-    	//THRESHING
-    	Imgproc.threshold(imageHSV, imageHSV, 90, 255, Imgproc.THRESH_BINARY);
+    	Imgproc.dilate(imageHSV, imageHSV, dilate);
     	
+    	//BLUR PART 2
+    	Imgproc.GaussianBlur(imageHSV, imageHSV, new Size(15,15), 0);
+    	
+    	//THRESHING
+    	Imgproc.threshold(imageHSV, imageHSV, 73, 255, Imgproc.THRESH_BINARY);
+    	
+    	//DILATE ONCE MORE
+    	Imgproc.dilate(imageHSV, imageHSV, dilate);
+    	
+    	/************/
     	//CONTOURS AND OBJECT DETECTION
     	contours = new ArrayList<>();
     	hierarchy = new Mat();
